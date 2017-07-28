@@ -1,0 +1,234 @@
+<html>
+<head>
+<title>紙幣価値検索</title>
+<meta charset="utf-8"/>
+<link href="./icon57.png" rel="apple-touch-icon" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+
+<meta name="description" content="IBM Watson を使って海外紙幣の画像から、その日本円に換算した価値をリアルタイムに検索するサービス"/>
+<meta name="keywords" content="画像検索,画像サーチ,IBM Watson"/>
+
+
+<script src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css"/>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="./cvi_busy_lib.js"></script>
+<script type="text/javascript">
+$(function(){
+  window.addEventListener( 'dragover', function( event ){
+    event.preventDefault(); // ブラウザのデフォルトの画像表示処理をOFF
+  }, false );
+
+  window.addEventListener( 'drop', function( event ){
+    event.preventDefault(); // ブラウザのデフォルトの画像表示処理をOFF
+    var file = event.dataTransfer.files[0];
+    // ファイルタイプ(MIME)で対応しているファイルか判定
+    if( !file.type.match( /image\/\w+/ ) ){
+      alert( '画像ファイル以外は利用できません' );
+      return;
+    }
+
+    var reader = new FileReader(); 
+    reader.onload = function(){
+      var img = new Image();
+      img.src = reader.result;
+      img.addEventListener( 'load', function(){
+        $("#base").attr( 'src', img.src );
+        var w = img.width;
+        var h = img.height;
+        if( w > h ){
+          h = Math.round( 800 * h / w );
+          w = 800;
+        }else{
+          w = Math.round( 800 * w / h );
+          h = 800;
+        }
+        
+        $("#base").attr( 'width', w );
+        $("#base").attr( 'height', h );
+        $(".relative").attr( 'width', w );
+
+        imageFileUpload( file );
+      }, false );
+    };
+    reader.onerror = function( e ){
+      console.log( 'error: ' + e );
+    };
+    reader.readAsDataURL( file );
+  }, false );
+
+  // ファイルを選択した場合にもプレビュー表示させる
+  var selfInput = $(this).find( 'input[type=file]' );
+  selfInput.change( function(){
+    var file = $(this).prop('files')[0];
+    if( !file.type.match( /image\/\w+/ ) ){
+      alert( '画像ファイル以外は利用できません' );
+      return;
+    }
+
+    var reader = new FileReader();
+    if( this.files.length ){
+      if( file.type.match('image.*') ){
+        reader.onload = function(){
+          var img = new Image();
+          img.src = reader.result;
+          img.addEventListener( 'load', function(){
+            $("#base").attr( 'src', img.src );
+            
+            var w = img.width;
+            var h = img.height;
+            if( w > h ){
+              h = Math.round( 800 * h / w );
+              w = 800;
+            }else{
+              w = Math.round( 800 * w / h );
+              h = 800;
+            }
+        
+            $("#base").attr( 'width', w );
+            $("#base").attr( 'height', h );
+            $(".relative").attr( 'width', w );
+
+            imageFileUpload( file );
+          }, false );
+        };
+        reader.onerror = function( e ){
+          console.log( 'error: ' + e );
+        };
+        reader.readAsDataURL( file );
+      }else{
+        if( 0 < selfImg.size() ){
+          return;
+        }
+      }
+    }
+  });
+});
+
+// ファイルアップロード
+function imageFileUpload( f ){
+  $("#result").html( "" );
+  var obj = getBusyOverlay( 'viewport', { color:'black', opacity:0.5, text:'loading', style:'text-decoration:blink;font-weight:bold;font-size:12px;color:white' } );
+  var formData = new FormData();
+  formData.append( 'img', f );
+  $.ajax({
+    type: 'POST',
+    contentType: false,
+    processData: false,
+    url: './upload',
+    data: formData,
+    success: function( data ){
+      obj.remove();
+      json = JSON.parse( data );
+      console.log( json );
+      if( json.similar_images ){
+        var images = json.similar_images;
+        var image = images[0];
+        result = "<hr/>";
+        
+        image_id = image.image_id;
+        score = image.score;
+        c_img = "./imgs/" + image.image_file;
+        metadata = image.metadata;
+
+        filename = metadata.filename;
+        currency = metadata.currency;
+        unit = metadata.unit;
+        t = currency + ":" + unit;
+
+        img = "<img height='100' id='" + image_id + "' src='" + c_img + "' title='" + t + "'/>";
+
+        $.ajax({
+          type: 'GET',
+          url: './convert?from=' + currency,
+          success: function( data1 ){
+            var p = parseFloat( data1 );
+            var jpy = unit * p;
+            a = "<hr/><a href=\"javascript:alert('" + jpy + " JPY');\">" + img + "</a>";
+            result += a;
+            $("#result").html( result );
+          },
+          error: function(XMLHttpRequest1, textStatus1, errorThrown1) {
+            console.log( textStatus1 + ": " + errorThrown1 );
+          }
+        });
+         
+      }else{
+        result = "この画像を正しく識別できませんでした。"
+      }
+    },
+    error: function(XMLHttpRequest, textStatus, errorThrown) {
+      obj.remove();
+      // メッセージ出したり、DOM構築したり。
+      console.log( "XMLHttpRequest: " + XMLHttpRequest.status );
+      console.log( "textStatus: " + textStatus );
+      console.log( "errorThrown: " + errorThrown.message );
+      
+      $("#result").html( "類似画像検索中にエラーが発生しました: " + textStatus );
+    }
+  });
+}
+</script>
+<style>
+.relative{
+  position: relative;
+}
+.absolute{
+  position: absolute;
+}
+
+html, body, {
+  height: 100%;
+  margin: 0px;
+  padding: 0px
+}
+</style>
+</head>
+<body>
+  <!-- //navi -->
+  <nav class="navbar navbar-default navbar-fixed-top">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="./">紙幣価値検索</a>
+      <button class="navbar-toggle" data-toggle="collapse" data-target=".target">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="collapse navbar-collapse target">
+      <ul class="nav navbar-nav navbar-right">   
+      	<li>
+		</li>
+      </ul>
+    </div>
+  </nav>
+  <!-- navi// -->
+  
+  <div class="ontainer" style="padding:60px 0; font-size:8px;" align="right">
+  Powered with <b>IBM Watson Visual Recognition</b> API.
+  </div>
+  
+  <!-- //search -->
+  <div class="container" style="padding:0px 0">
+    <form method="POST" action="./upload" enctype="multipart/form-data">
+    <input type="file" name="img"/>
+    </form>
+  </div>
+  <!-- search// -->
+  
+  <!-- //list -->
+  <div class="container" style="padding:20px 0">
+    <div id="cvs" class="relative">
+      <img id="base"/>
+      <div id="result"></div>
+    </div>
+  </div>
+  <!-- list// -->
+
+</body>
+
+</html>
+

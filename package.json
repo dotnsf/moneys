@@ -1,0 +1,22 @@
+{
+    "name": "moneys",
+    "version": "0.0.1",
+    "scripts": {
+        "start": "node app.js"
+    },
+    "dependencies": {
+        "basic-auth-connect": "1.0.x",
+        "body-parser": "^1.17.2",
+        "cfenv": "~1.0.0",
+        "cheerio-httpcli": "^0.7.0",
+        "easyimage": "2.1.x",
+        "ejs": "^2.3.4",
+        "express": "4.1.x",
+        "multer": "^1.1.0",
+        "watson-developer-cloud": "2.15.x"
+    },
+    "repository": {},
+    "engines": {
+        "node": "4.x"
+    }
+}

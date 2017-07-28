@@ -1,0 +1,10 @@
+node_modules
+public/imgs/*.jpg
+public/imgs/*.JPG
+public/imgs/*.gif
+public/imgs/*.GIF
+public/imgs/*.png
+public/imgs/*.PNG
+package-lock.json
+settings.js.*
+
